@@ -7,43 +7,49 @@ import time
 if os.path.exists('data.pkl'):
     with open('data.pkl', 'rb') as f:
         Q_table = pickle.load(f)
+else:
+    Q_table = {}
 
-Q_table = {}
 alpha = 0.1
 gamma = 0.9
 r = 1
 
 def revisar_ganador(tablero):
     tablero = "".join(tablero)
-    ganador = None
-    if 'E' not in tablero:
+
+    # Convertir lista a string para facilitar la búsqueda de patrones
+    tablero_str = "".join(tablero)
+    
+    # Revisar filas
+    for i in range(0, 9, 3):
+        if tablero[i] == tablero[i+1] == tablero[i+2] != ' ':
+            return tablero[i]
+    
+    # Revisar columnas
+    for i in range(3):
+        if tablero[i] == tablero[i+3] == tablero[i+6] != ' ':
+            return tablero[i]
+    
+    # Revisar diagonales
+    if tablero[0] == tablero[4] == tablero[8] != ' ':
+        return tablero[0]
+    if tablero[2] == tablero[4] == tablero[6] != ' ':
+        return tablero[2]
+    
+    # Revisar empate
+    if ' ' not in tablero:
         return 'Empate'
+    
 
-    for patron in ['X..X..X', 'X...X...X']:
-        if re.search(patron, tablero):
-            return 'X'
-    for patron in ['XXX', 'X.X.X']:
-        if re.search(patron, tablero) and tablero.index(patron)%3 != 1:
-            return 'X'
-        
-    for patron in ['O..O..O', 'OOO', 'O...O...O', 'O.O.O']:
-        if re.search(patron, tablero):
-            return 'O'
-
-    for patron in ['OOO', 'O.O.O']:
-        if re.search(patron, tablero) and tablero.index(patron)%3 != 1:
-            return 'O'
-    return
 def mostrar_tablero(lista_tablero):
-    lista = []
     for i in range(3):
         print(lista_tablero[(i*3):(i*3 + 3)])
     print()
 
 def jugar(qtable, params):
 
-    alpha, gamma, r = params
-    tablero = ['E' for _ in range(9)]
+    alpha, gamma, epsilon = params
+    tablero = [' ' for _ in range(9)]
     players = ['X', 'O']
 
     ganador = None
@@ -58,16 +64,23 @@ def jugar(qtable, params):
 
             #determinar la mejor jugada
 
-            casillas_vacias = [i for i in range(len(tablero)) if tablero[i] == 'E']
+            casillas_vacias = [i for i in range(len(tablero)) if tablero[i] == ' ']
 
             if state not in qtable.keys():
                 #en caso de que el estado sea nuevo
-
                 qtable[state] = [0 for _ in range(9)] #se crea el estado nuevo
-                #se revisa si hay algun potencial estado siguiente conocido 
+
+                jugada = random.choice(casillas_vacias)
+
+            elif random.random() < epsilon:
                 jugada = random.choice(casillas_vacias)
             else:
-               jugada = qtable[state].index(max(qtable[state]))
+                valores_temp = qtable[state].copy()
+                for i in range(9):
+                    if i not in casillas_vacias:
+                        valores_temp[i] = -float('inf')
+
+                jugada = valores_temp.index(max(valores_temp))
 
             if player == 'X':
                 jugadas_X.append((state, jugada))
@@ -75,34 +88,64 @@ def jugar(qtable, params):
                 jugadas_O.append((state, jugada))
 
             tablero[jugada] = player
-            mostrar_tablero(tablero)
 
             ganador = revisar_ganador(tablero)
             if ganador:
                 break
 
+            mostrar_tablero(tablero)
 
+    mostrar_tablero(tablero)
     print('El ganador es', ganador)
-    print(jugadas_O)
-    print(jugadas_X)
 
     if ganador == 'O':
-        r_O = r
-        r_X = -r
+        r_O = 1.0
+        r_X = -1.0
     elif ganador == 'X':
-        r_O = -r
-        r_X = r
+        r_O = -1.0
+        r_X = 1.0
     else:
-        r_O, r_X = 0, 0
+        r_O, r_X = 0.1, 0.1
 
-    for i in range(0, len(jugadas_O), -1):
-        print(i)
+    for i in range(len(jugadas_X)-1, -1, -1):
+        estado, accion = jugadas_X[i]
+        if i == len(jugadas_X)-1:
+            print(f"Actualizacion: {estado}[{accion}] | {qtable[estado][accion]} -> ", end='')
+            qtable[estado][accion] += alpha * (r_X - qtable[estado][accion])
 
-    for i in range(0, len(jugadas_X), -1):
-        pass
+            print(qtable[estado][accion])
+        else:
+            print(f"Actualizacion: {estado}[{accion}] | {qtable[estado][accion]} -> ", end='')
 
-        
-jugar(Q_table, (0.1, 0.9, 1))
+            siguiente_estado = jugadas_X[i+1][0]
+            mejor_siguiente = max(qtable[siguiente_estado]) if siguiente_estado in qtable else 0
+            qtable[estado][accion] += alpha * (gamma * mejor_siguiente - qtable[estado][accion])
+
+            print(qtable[estado][accion])
+
+    for i in range(len(jugadas_O)-1, -1, -1):
+        estado, accion = jugadas_O[i]
+        if i == len(jugadas_O)-1:
+            print(f"Actualizacion: {estado}[{accion}] | {qtable[estado][accion]} -> ", end='')
+
+            qtable[estado][accion] += alpha * (r_O - qtable[estado][accion])
+
+            print(qtable[estado][accion])
+        else:
+            print(f"Actualizacion: {estado}[{accion}] | {qtable[estado][accion]} -> ", end='')
+
+            siguiente_estado = jugadas_O[i+1][0]
+            mejor_siguiente = max(qtable[siguiente_estado]) if siguiente_estado in qtable else 0
+            qtable[estado][accion] += alpha * (gamma * mejor_siguiente - qtable[estado][accion])
+
+            print(qtable[estado][accion])
+    
+    # Actualizar Q-table para X
+
+
+for _ in range(1):
+    jugar(Q_table, (0.1, 0.9, 0.1))
+
 
 with open('data.pkl', 'wb') as f:
     pickle.dump(Q_table, f)
