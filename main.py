@@ -46,7 +46,7 @@ def mostrar_tablero(lista_tablero):
         print(lista_tablero[(i*3):(i*3 + 3)])
     print()
 
-def jugar(qtable, params):
+def jugar(qtable, params, mostrar=False):
 
     alpha, gamma, epsilon = params
     tablero = [' ' for _ in range(9)]
@@ -92,11 +92,14 @@ def jugar(qtable, params):
             ganador = revisar_ganador(tablero)
             if ganador:
                 break
+            
+            if mostrar:
+                mostrar_tablero(tablero)
 
-            mostrar_tablero(tablero)
 
-    mostrar_tablero(tablero)
-    print('El ganador es', ganador)
+    if mostrar:
+        mostrar_tablero(tablero)
+        print('El ganador es', ganador)
 
     if ganador == 'O':
         r_O = 1.0
@@ -140,13 +143,13 @@ def jugar(qtable, params):
 
             print(qtable[estado][accion])
     
-    # Actualizar Q-table para X
 
 
 for _ in range(1):
-    jugar(Q_table, (0.1, 0.9, 0.1))
+    jugar(Q_table, (0.1, 0.9, 0.001), mostrar=True)
 
 
+print(len(Q_table.items()))
 with open('data.pkl', 'wb') as f:
     pickle.dump(Q_table, f)
 
